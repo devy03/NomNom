@@ -110,7 +110,7 @@ Contributions, feature requests, and bug reports are always welcome! Feel free t
 
 ## 📄 License
 
-This project is licensed under the MIT License.
+
 
 ---
 
