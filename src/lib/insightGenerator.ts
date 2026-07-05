@@ -20,7 +20,7 @@ function getSpiceDescription(level: number): string {
   return "non-spicy";
 }
 
-function getDietaryDescription(restrictions: string[]): string {
+function getDietaryDescription(restrictions: string[]): string | null {
   if (restrictions.length === 0) return null;
   if (restrictions.includes("vegetarian")) return "Vegetarian-friendly";
   if (restrictions.includes("vegan")) return "Vegan options";
