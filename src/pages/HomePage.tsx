@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Brain } from "lucide-react";
-import { dashboardCards, memoryInsights } from "@/data/mockData";
+import { dashboardCards } from "@/data/mockData";
 import { AIOrb } from "@/components/shared/AIOrb";
+import { InsightMarquee } from "@/components/shared/InsightMarquee";
 import { useAuth } from "@/hooks/useAuth";
 import { getProfile } from "@/services/profileService";
 
@@ -48,27 +48,10 @@ export function HomePage() {
         <AIOrb size={90} />
       </div>
 
-      {/* Memory strip */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
-        className="glass mt-8 flex items-center gap-3 overflow-hidden rounded-2xl px-5 py-4"
-      >
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500/20 text-violet-300">
-          <Brain size={16} />
-        </div>
-        <div
-          className="no-scrollbar flex gap-6 overflow-x-auto"
-          style={{ maskImage: "linear-gradient(to right, transparent, black 24px, black 92%, transparent)" }}
-        >
-          {memoryInsights.map((insight, i) => (
-            <span key={i} className="whitespace-nowrap text-sm text-zinc-300">
-              {insight}
-            </span>
-          ))}
-        </div>
-      </motion.div>
+      {/* Insight Marquee Ticker */}
+      <div className="mt-8">
+        <InsightMarquee />
+      </div>
 
       {/* Cards grid */}
       <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3">
