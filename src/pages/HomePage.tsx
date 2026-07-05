@@ -45,7 +45,7 @@ export function HomePage() {
             {displayName} <span className="text-gradient">.</span>
           </motion.h1>
         </div>
-        <AIOrb size={90} />
+        <AIOrb size={90} onClick={() => navigate("/")} />
       </div>
 
       {/* Insight Marquee Ticker */}

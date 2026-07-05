@@ -9,6 +9,7 @@ export function AIOrb({
   size = 260,
   className,
   radar = false,
+  onClick,
 }: {
   size?: number;
   className?: string;
@@ -16,6 +17,7 @@ export function AIOrb({
    * passes their position, then fade out. Meant for the landing page hero —
    * leave off for smaller inline uses so it doesn't feel cluttered. */
   radar?: boolean;
+  onClick?: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState(false);
@@ -50,7 +52,8 @@ export function AIOrb({
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={handleLeave}
-      className={cn("relative flex items-center justify-center", className)}
+      onClick={onClick}
+      className={cn("relative flex items-center justify-center", onClick && "cursor-pointer", className)}
       style={{ width: size, height: size, perspective: 800 }}
     >
       {[0, 1, 2].map((i) => (
