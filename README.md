@@ -1,32 +1,119 @@
-# React + TypeScript + Vite
+# 🍽️ NomNom
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+**NomNom** is an AI-powered restaurant discovery platform that helps individuals and groups decide where to eat using real-time location, personal preferences, budget, mood, and live restaurant data.
 
-Currently, two official plugins are available:
+No more endless debates over *"Where should we eat?"* — NomNom helps you discover the perfect place in seconds.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## ✨ Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- 🤖 AI-powered restaurant recommendations
+- 📍 Discover restaurants near your current location
+- 👥 Create group rooms and decide together
+- ❤️ Save your favorite restaurants
+- 🍳 Cook with ingredients you already have
+- 🎲 Food Roulette for spontaneous choices
+- 🌎 Real restaurant data powered by Google Places
+- ⭐ Ratings, reviews, photos, hours, and contact information
+- 🔍 Personalized recommendations based on your preferences
+- 🌙 Modern premium UI with smooth animations
+- 🔐 Secure authentication with Supabase
 
-## Expanding the Oxlint configuration
+---
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+## 🛠️ Tech Stack
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+### Frontend
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- Framer Motion
+- shadcn/ui
+
+### Backend
+- Supabase Authentication
+- Supabase Database
+- Supabase Realtime
+
+### APIs
+- Google Places API
+- Google Geocoding API
+- Gemini AI
+
+---
+
+## 🚀 Getting Started
+
+Clone the repository:
+
+```bash
+git clone https://github.com/yourusername/nomnom.git
+cd nomnom
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Install dependencies:
+
+```bash
+npm install
+```
+
+Create a `.env` file:
+
+```env
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+VITE_GOOGLE_PLACES_API_KEY=
+VITE_AI_API_KEY=
+VITE_AI_PROVIDER=gemini
+```
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+Build for production:
+
+```bash
+npm run build
+```
+
+---
+
+## 📸 Screenshots
+
+> Add screenshots of the landing page, AI chat, Nearby, Group Mode, Restaurant Details, and Profile here.
+
+---
+
+## 🗺️ Roadmap
+
+- [ ] AI meal planning
+- [ ] Voice assistant
+- [ ] Restaurant reservations
+- [ ] Live wait times
+- [ ] Push notifications
+- [ ] Social features
+- [ ] Native iOS & Android apps
+- [ ] Smart grocery integration
+
+---
+
+## 🤝 Contributing
+
+Contributions, feature requests, and bug reports are always welcome! Feel free to open an issue or submit a pull request.
+
+---
+
+## 📄 License
+
+---
+
+<p align="center">
+  <strong>🍔 NomNom</strong><br>
+  <i>Helping you answer one simple question:</i><br><br>
+  <b>Where should we eat?</b>
+</p>
