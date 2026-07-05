@@ -19,9 +19,9 @@ export function NavShell() {
   const { user, isConfigured } = useAuth();
 
   return (
-    <div className="relative min-h-screen">
-      <header className="fixed top-0 left-0 right-0 z-40 flex justify-center px-4 pt-4">
-        <div className="glass-strong flex w-full max-w-3xl items-center justify-between rounded-2xl px-4 py-2.5 shadow-2xl shadow-black/40">
+    <div className="relative min-h-screen bg-transparent">
+      <header className="fixed top-0 left-0 right-0 z-40 flex justify-center px-4 pt-4 pointer-events-none">
+        <div className="glass-strong flex w-full max-w-3xl items-center justify-between rounded-2xl px-4 py-2.5 shadow-2xl shadow-black/40 pointer-events-auto">
           <NavLink to="/home" className="group flex items-center gap-2 pr-2">
             <Sparkles size={18} className="text-fuchsia-400 transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110" />
             <span className="text-sm font-semibold tracking-tight text-white">NomNom</span>
@@ -67,7 +67,7 @@ export function NavShell() {
         </div>
       </header>
 
-      <main className="pt-24 pb-10">
+      <main className="pt-24 pb-10 bg-transparent">
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
