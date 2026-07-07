@@ -342,6 +342,7 @@ export function GroupRoomPage() {
             <Button size="sm" variant="glass" onClick={() => handleSaveLocation(true)} disabled={savingLocation}>
               <Navigation size={13} /> Use my current location
             </Button>
+            <p className="text-[11px] text-zinc-500">Location search by OpenStreetMap</p>
           </div>
         ) : (
           <div className="flex items-center justify-between gap-3">

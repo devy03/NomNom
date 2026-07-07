@@ -5,7 +5,7 @@ export interface Coordinates {
 
 export interface Restaurant {
   id: string; // Google place_id, or "mock-*" id when using fallback data
-  source: "google" | "mock";
+  source: "geoapify" | "mock";
   name: string;
   image: string;
   photos: string[];

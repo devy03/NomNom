@@ -1,11 +1,36 @@
 import type { Coordinates } from "@/types";
-import { env, hasGooglePlaces } from "@/lib/env";
 import { SF_DEFAULT_CENTER } from "@/data/mockRestaurants";
 
 export class GeocodingError extends Error {
   constructor(message = "We couldn't find that location. Try a city, ZIP, or full address.") {
     super(message);
     this.name = "GeocodingError";
+  }
+}
+
+// Geocoding runs against OpenStreetMap's public Nominatim instance — free, no
+// API key. Per its usage policy (https://operations.osmfoundation.org/policies/nominatim/)
+// callers must identify themselves via User-Agent or Referer and must cache
+// results. Browsers block scripts from setting a custom User-Agent, but every
+// fetch() automatically sends this page's Referer, which the policy accepts
+// as the alternative — combined with the localStorage cache below, that
+// satisfies both requirements without needing a proxy.
+const NOMINATIM_CACHE_KEY = "nomnom:geocode-cache";
+
+function readGeocodeCache(): Record<string, GeocodeResult> {
+  try {
+    const raw = localStorage.getItem(NOMINATIM_CACHE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeGeocodeCache(cache: Record<string, GeocodeResult>) {
+  try {
+    localStorage.setItem(NOMINATIM_CACHE_KEY, JSON.stringify(cache));
+  } catch {
+    // ignore (private mode / storage full)
   }
 }
 
@@ -31,33 +56,31 @@ export async function geocodeAddress(query: string): Promise<GeocodeResult> {
   const trimmed = query.trim();
   if (!trimmed) throw new GeocodingError("Enter a city, ZIP code, or address.");
 
-  if (hasGooglePlaces) {
-    try {
-      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
-        trimmed
-      )}&key=${env.googlePlacesApiKey}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.status === "OK" && data.results?.[0]) {
-        const result = data.results[0];
-        return {
-          lat: result.geometry.location.lat,
-          lng: result.geometry.location.lng,
-          label: result.formatted_address,
-        };
-      }
-      throw new GeocodingError();
-    } catch (err) {
-      if (err instanceof GeocodingError) throw err;
-      // network/CORS error — fall through to offline fallback below
+  const cacheKey = trimmed.toLowerCase();
+  const cache = readGeocodeCache();
+  if (cache[cacheKey]) return cache[cacheKey];
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(trimmed)}&format=json&limit=1`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (Array.isArray(data) && data[0]) {
+      const result: GeocodeResult = {
+        lat: parseFloat(data[0].lat),
+        lng: parseFloat(data[0].lon),
+        label: data[0].display_name,
+      };
+      writeGeocodeCache({ ...cache, [cacheKey]: result });
+      return result;
     }
+  } catch {
+    // network error — fall through to offline fallback below
   }
 
-  const key = trimmed.toLowerCase();
-  const directMatch = FALLBACK_PLACES[key];
+  const directMatch = FALLBACK_PLACES[cacheKey];
   if (directMatch) return directMatch;
 
-  const partial = Object.entries(FALLBACK_PLACES).find(([k]) => key.includes(k) || k.includes(key));
+  const partial = Object.entries(FALLBACK_PLACES).find(([k]) => cacheKey.includes(k) || k.includes(cacheKey));
   if (partial) return partial[1];
 
   // Last resort: center on the default demo city so the UI keeps working.

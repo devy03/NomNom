@@ -3,7 +3,7 @@ import type { Restaurant } from "@/types";
 const img = (seed: string) => `https://images.unsplash.com/${seed}?auto=format&fit=crop&w=800&q=80`;
 const maps = (name: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`;
 
-// Fallback data used when VITE_GOOGLE_PLACES_API_KEY is not configured, or a Places request fails.
+// Fallback data used when VITE_GEOAPIFY_API_KEY is not configured, or a Places request fails.
 // Centered near downtown San Francisco so distance math has something reasonable to work with.
 export const mockRestaurants: Restaurant[] = [
   {
