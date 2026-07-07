@@ -1,12 +1,33 @@
 import { supabase } from "@/lib/supabaseClient";
 import { hasSupabase } from "@/lib/env";
-import type { GroupMember, GroupMemberPreferences, GroupRoom, RoomStatus } from "@/types";
+import type { GroupMatchBreakdown, GroupMember, GroupMemberPreferences, GroupRoom, RoomStatus } from "@/types";
 
 export class GroupServiceError extends Error {}
 
 function randomRoomCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+}
+
+/** Maps a raw Supabase group_rooms row to the GroupRoom type. Single source of
+ * truth so every fetch (create, find, history) returns the same shape,
+ * including the shared meetup location and computed result snapshot. */
+function mapRoomRow(row: Record<string, any>): GroupRoom {
+  return {
+    id: row.id,
+    roomCode: row.room_code,
+    createdBy: row.created_by,
+    status: row.status,
+    roomName: row.room_name ?? undefined,
+    isPermanent: row.is_permanent ?? true,
+    originLat: row.origin_lat ?? undefined,
+    originLng: row.origin_lng ?? undefined,
+    locationLabel: row.location_label ?? undefined,
+    resultSnapshot: (row.result_snapshot as GroupMatchBreakdown[] | null) ?? undefined,
+    resultsComputedAt: row.results_computed_at ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
 // ── In-memory / localStorage fallback (used when Supabase isn't configured) ──
@@ -64,10 +85,7 @@ export async function createRoom(userId?: string): Promise<GroupRoom> {
     .select()
     .single();
   if (error) throw new GroupServiceError(error.message);
-  return {
-    id: data.id, roomCode: data.room_code, createdBy: data.created_by,
-    status: data.status, isPermanent: data.is_permanent ?? true, createdAt: data.created_at, updatedAt: data.updated_at,
-  };
+  return mapRoomRow(data);
 }
 
 export async function findRoomByCode(roomCode: string): Promise<GroupRoom | null> {
@@ -82,10 +100,19 @@ export async function findRoomByCode(roomCode: string): Promise<GroupRoom | null
     .maybeSingle();
   if (error) throw new GroupServiceError(error.message);
   if (!data) return null;
-  return {
-    id: data.id, roomCode: data.room_code, createdBy: data.created_by,
-    status: data.status, isPermanent: data.is_permanent ?? true, createdAt: data.created_at, updatedAt: data.updated_at,
-  };
+  return mapRoomRow(data);
+}
+
+/** Fetch a single room by its id. Used to re-read shared state (meetup
+ * location, result snapshot) when a realtime change fires. */
+export async function getRoom(roomId: string): Promise<GroupRoom | null> {
+  if (!hasSupabase) {
+    const rooms = readLocalRooms();
+    return Object.values(rooms).find((s) => s.room.id === roomId)?.room ?? null;
+  }
+  const { data, error } = await supabase!.from("group_rooms").select("*").eq("id", roomId).maybeSingle();
+  if (error) throw new GroupServiceError(error.message);
+  return data ? mapRoomRow(data) : null;
 }
 
 export async function joinRoom(roomId: string, guestName: string, userId?: string): Promise<GroupMember> {
@@ -223,6 +250,55 @@ export async function updateRoomName(roomId: string, roomName: string): Promise<
   if (error) throw new GroupServiceError(error.message);
 }
 
+/** Sets the shared meetup location for the whole room. Every member's
+ * restaurant search uses this origin so results are consistent. */
+export async function updateRoomLocation(
+  roomId: string,
+  location: { lat: number; lng: number; label?: string }
+): Promise<void> {
+  if (!hasSupabase) {
+    const rooms = readLocalRooms();
+    Object.values(rooms).forEach((state) => {
+      if (state.room.id === roomId) {
+        state.room.originLat = location.lat;
+        state.room.originLng = location.lng;
+        state.room.locationLabel = location.label;
+      }
+    });
+    writeLocalRooms(rooms);
+    return;
+  }
+
+  const { error } = await supabase!
+    .from("group_rooms")
+    .update({ origin_lat: location.lat, origin_lng: location.lng, location_label: location.label ?? null })
+    .eq("id", roomId);
+  if (error) throw new GroupServiceError(error.message);
+}
+
+/** Persists a computed group match to the room so every member renders the
+ * identical list (broadcast via the existing group_rooms realtime channel). */
+export async function saveGroupResults(roomId: string, breakdowns: GroupMatchBreakdown[]): Promise<void> {
+  const computedAt = new Date().toISOString();
+  if (!hasSupabase) {
+    const rooms = readLocalRooms();
+    Object.values(rooms).forEach((state) => {
+      if (state.room.id === roomId) {
+        state.room.resultSnapshot = breakdowns;
+        state.room.resultsComputedAt = computedAt;
+      }
+    });
+    writeLocalRooms(rooms);
+    return;
+  }
+
+  const { error } = await supabase!
+    .from("group_rooms")
+    .update({ result_snapshot: breakdowns, results_computed_at: computedAt })
+    .eq("id", roomId);
+  if (error) throw new GroupServiceError(error.message);
+}
+
 export async function getUserGroupHistory(userId: string | undefined, days: number = 7): Promise<GroupRoom[]> {
   if (!userId || !hasSupabase) {
     // For local/guest users, return empty array
@@ -240,16 +316,7 @@ export async function getUserGroupHistory(userId: string | undefined, days: numb
     .order("created_at", { ascending: false });
 
   if (error) throw new GroupServiceError(error.message);
-  return (data || []).map((row) => ({
-    id: row.id,
-    roomCode: row.room_code,
-    createdBy: row.created_by,
-    status: row.status,
-    roomName: row.room_name,
-    isPermanent: row.is_permanent ?? true,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  }));
+  return (data || []).map(mapRoomRow);
 }
 
 export async function getUserParticipatedRooms(userId: string | undefined, days: number = 7): Promise<GroupRoom[]> {
@@ -279,16 +346,7 @@ export async function getUserParticipatedRooms(userId: string | undefined, days:
 
   if (err) throw new GroupServiceError(err.message);
 
-  return (rooms || []).map((row) => ({
-    id: row.id,
-    roomCode: row.room_code,
-    createdBy: row.created_by,
-    status: row.status,
-    roomName: row.room_name,
-    isPermanent: row.is_permanent ?? true,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  }));
+  return (rooms || []).map(mapRoomRow);
 }
 
 export async function recordVote(roomId: string, memberId: string, guestName: string, placeId: string, restaurantName: string, userId?: string): Promise<void> {

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link2, Check, Users, Sparkles, ThumbsUp, ThumbsDown, Crown, DollarSign, MapPinned, Gem, ShieldCheck, Edit2, X } from "lucide-react";
+import { Link2, Check, Users, Sparkles, ThumbsUp, ThumbsDown, Crown, DollarSign, MapPinned, Gem, ShieldCheck, Edit2, X, MapPin, Navigation } from "lucide-react";
 import {
-  findRoomByCode, getGroupPreferences, getMembers, joinRoom, savePreferences, subscribeToRoom, updateRoomName,
+  findRoomByCode, getGroupPreferences, getMembers, getRoom, joinRoom, savePreferences, subscribeToRoom, updateRoomName, updateRoomLocation, saveGroupResults,
 } from "@/services/groupService";
 import { searchNearbyRestaurants } from "@/services/restaurantService";
+import { geocodeAddress } from "@/services/geocodingService";
 import { computeGroupMatch } from "@/lib/groupMatch";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
@@ -50,16 +51,28 @@ export function GroupRoomPage() {
     dietaryRestrictions: [], mood: "Happy", diningStyle: "dine-in", spiceLevel: 50, openToNewPlaces: true, isReady: false,
   });
 
-  const [results, setResults] = useState<GroupMatchBreakdown[] | null>(null);
   const [computing, setComputing] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [newRoomName, setNewRoomName] = useState("");
+  const [editingLocation, setEditingLocation] = useState(false);
+  const [locationQuery, setLocationQuery] = useState("");
+  const [savingLocation, setSavingLocation] = useState(false);
 
   const storageKey = `nomnom:room:${roomCode}:member`;
 
+  // Shared results come from the room snapshot so every member sees the same list.
+  const results = room?.resultSnapshot ?? null;
+
   const refetch = useCallback(async () => {
     if (!room) return;
-    const [m, p] = await Promise.all([getMembers(room.id), getGroupPreferences(room.id)]);
+    const [freshRoom, m, p] = await Promise.all([
+      getRoom(room.id).catch(() => null),
+      getMembers(room.id),
+      getGroupPreferences(room.id),
+    ]);
+    // Re-read the room so shared meetup location + result snapshot propagate to
+    // every member when a realtime change fires.
+    if (freshRoom) setRoom(freshRoom);
     setMembers(m);
     setAllPrefs(p);
   }, [room]);
@@ -150,19 +163,50 @@ export function GroupRoomPage() {
   const handleCalculate = async () => {
     if (!room) return;
     setComputing(true);
-    setResults(null);
     try {
-      let origin = coords;
+      // Everyone in the room searches from ONE shared origin so results match.
+      // Prefer the room's saved meetup location; if none is set yet, fall back
+      // to this user's location and persist it as the group origin.
+      let origin = room.originLat != null && room.originLng != null
+        ? { lat: room.originLat, lng: room.originLng }
+        : null;
       if (!origin) {
-        origin = await requestBrowserLocation().catch(() => SF_DEFAULT_CENTER);
+        origin = coords ?? (await requestBrowserLocation().catch(() => SF_DEFAULT_CENTER));
+        await updateRoomLocation(room.id, { lat: origin.lat, lng: origin.lng, label: room.locationLabel ?? "Group location" }).catch(() => {});
       }
-      const pool = await searchNearbyRestaurants(origin!, { maxDistanceMiles: Math.max(...allPrefs.map((p) => p.maxDistanceMiles), 5) });
+      const pool = await searchNearbyRestaurants(origin, { maxDistanceMiles: Math.max(...allPrefs.map((p) => p.maxDistanceMiles), 5) });
       const matches = computeGroupMatch(pool, allPrefs.length > 0 ? allPrefs : [{ ...myPrefs, roomId: room.id, guestName: myMember?.guestName ?? "You" }]);
-      setResults(matches);
+      // Broadcast the computed match to every member via the room snapshot.
+      await saveGroupResults(room.id, matches);
+      await refetch();
     } catch {
       toast("Couldn't calculate a group match right now.", "error");
     } finally {
       setComputing(false);
+    }
+  };
+
+  const handleSaveLocation = async (useMyLocation: boolean) => {
+    if (!room) return;
+    setSavingLocation(true);
+    try {
+      let loc: { lat: number; lng: number; label?: string };
+      if (useMyLocation) {
+        const pos = coords ?? (await requestBrowserLocation());
+        loc = { lat: pos.lat, lng: pos.lng, label: "Current location" };
+      } else {
+        const geo = await geocodeAddress(locationQuery);
+        loc = { lat: geo.lat, lng: geo.lng, label: geo.label };
+      }
+      await updateRoomLocation(room.id, loc);
+      toast("Meetup location updated", "success");
+      setEditingLocation(false);
+      setLocationQuery("");
+      await refetch();
+    } catch {
+      toast("Couldn't set that location. Try a city, ZIP, or address.", "error");
+    } finally {
+      setSavingLocation(false);
     }
   };
 
@@ -273,6 +317,45 @@ export function GroupRoomPage() {
         <Button size="sm" variant="glass" onClick={copyInvite}>
           <Link2 size={14} /> Copy Invite
         </Button>
+      </div>
+
+      {/* Shared meetup location — used for everyone's restaurant search */}
+      <div className="glass mt-3 rounded-2xl px-5 py-4">
+        {editingLocation ? (
+          <div className="space-y-3">
+            <Label>Meetup location</Label>
+            <div className="flex gap-2">
+              <Input
+                value={locationQuery}
+                onChange={(e) => setLocationQuery(e.target.value)}
+                placeholder="City, ZIP, or address"
+                autoFocus
+                onKeyDown={(e) => { if (e.key === "Enter" && locationQuery.trim()) handleSaveLocation(false); }}
+              />
+              <Button size="sm" onClick={() => handleSaveLocation(false)} disabled={savingLocation || !locationQuery.trim()}>
+                <Check size={14} />
+              </Button>
+              <Button size="sm" variant="glass" onClick={() => { setEditingLocation(false); setLocationQuery(""); }}>
+                <X size={14} />
+              </Button>
+            </div>
+            <Button size="sm" variant="glass" onClick={() => handleSaveLocation(true)} disabled={savingLocation}>
+              <Navigation size={13} /> Use my current location
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm text-zinc-300">
+              <MapPin size={15} className="text-violet-400" />
+              <span>{room.locationLabel || "No meetup location set"}</span>
+            </div>
+            {isRoomCreator && (
+              <Button size="sm" variant="glass" onClick={() => { setEditingLocation(true); setLocationQuery(""); }}>
+                <Edit2 size={13} /> {room.locationLabel ? "Change" : "Set location"}
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">

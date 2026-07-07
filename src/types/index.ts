@@ -88,6 +88,14 @@ export interface GroupRoom {
   status: RoomStatus;
   roomName?: string;
   isPermanent: boolean;
+  // Shared meetup location used for the group's restaurant search so every
+  // member sees the same pool regardless of their own device location.
+  originLat?: number;
+  originLng?: number;
+  locationLabel?: string;
+  // Snapshot of the last computed group match, broadcast to all members.
+  resultSnapshot?: GroupMatchBreakdown[];
+  resultsComputedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
