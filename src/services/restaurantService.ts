@@ -63,8 +63,10 @@ interface GeoapifyFeature {
 function guessCuisine(categories: string[] | undefined): string {
   const specific = categories?.find((c) => c.startsWith("catering.") && c !== "catering.restaurant");
   if (!specific) return "Restaurant";
-  return specific
-    .replace("catering.", "")
+  // Categories can nest (e.g. "catering.restaurant.american") — the last
+  // dot-segment is always the most specific/human-readable part.
+  const lastSegment = specific.split(".").pop() ?? specific;
+  return lastSegment
     .split("_")
     .map((w) => w[0].toUpperCase() + w.slice(1))
     .join(" ");
