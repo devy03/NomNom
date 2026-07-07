@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { RestaurantCard } from "@/components/shared/RestaurantCard";
 import { SkeletonGrid, EmptyState, ErrorState } from "@/components/shared/StateViews";
 import { searchNearbyRestaurants } from "@/services/restaurantService";
+import { enrichTopResults } from "@/services/photoEnrichmentService";
 import type { Restaurant } from "@/types";
 import { useToast } from "@/hooks/useToast";
 
@@ -46,13 +47,20 @@ export function NearbyPage() {
     setLoadError(null);
     searchNearbyRestaurants(coords)
       .then((results) => {
-        if (!cancelled) setRestaurants(results);
+        if (cancelled) return;
+        setRestaurants(results);
+        setLoading(false);
+        // Enrich the first page of cards with real photos/contact info in
+        // the background so the initial list isn't delayed waiting on it.
+        enrichTopResults(results, 12, coords).then((enriched) => {
+          if (!cancelled) setRestaurants(enriched);
+        });
       })
       .catch(() => {
-        if (!cancelled) setLoadError("Couldn't load restaurants right now.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoadError("Couldn't load restaurants right now.");
+          setLoading(false);
+        }
       });
     return () => {
       cancelled = true;

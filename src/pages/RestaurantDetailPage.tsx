@@ -5,6 +5,7 @@ import {
   ArrowLeft, Star, MapPin, Clock, Heart, Navigation, Share2, Phone, Globe, Sparkles,
 } from "lucide-react";
 import { getRestaurantDetails, searchNearbyRestaurants } from "@/services/restaurantService";
+import { enrichRestaurantPhoto } from "@/services/photoEnrichmentService";
 import { addFavorite, isFavorite, removeFavorite } from "@/services/favoritesService";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
@@ -55,6 +56,10 @@ export function RestaurantDetailPage() {
         if (!cancelled) setSaved(fav);
         const nearby = await searchNearbyRestaurants(r.location).catch(() => []);
         if (!cancelled) setSimilar(nearby.filter((n) => n.id !== r.id && n.cuisine === r.cuisine).slice(0, 3));
+        // Fall back to the website's own og:image when Geoapify had no
+        // wiki_and_media photo for this place.
+        const withPhoto = await enrichRestaurantPhoto(r).catch(() => r);
+        if (!cancelled) setRestaurant(withPhoto);
       })
       .catch(() => {
         if (!cancelled) setError("We couldn't load this restaurant. It may no longer be available.");
