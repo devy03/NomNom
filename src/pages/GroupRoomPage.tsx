@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link2, Check, Users, Sparkles, ThumbsUp, ThumbsDown, Crown, DollarSign, MapPinned, Gem, ShieldCheck } from "lucide-react";
+import { Link2, Check, Users, Sparkles, ThumbsUp, ThumbsDown, Crown, DollarSign, MapPinned, Gem, ShieldCheck, Edit2, X } from "lucide-react";
 import {
-  findRoomByCode, getGroupPreferences, getMembers, joinRoom, savePreferences, subscribeToRoom,
+  findRoomByCode, getGroupPreferences, getMembers, joinRoom, savePreferences, subscribeToRoom, updateRoomName, getVotesForRoom,
 } from "@/services/groupService";
 import { searchNearbyRestaurants } from "@/services/restaurantService";
 import { computeGroupMatch } from "@/lib/groupMatch";
@@ -52,6 +52,9 @@ export function GroupRoomPage() {
 
   const [results, setResults] = useState<GroupMatchBreakdown[] | null>(null);
   const [computing, setComputing] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [newRoomName, setNewRoomName] = useState("");
+  const [votes, setVotes] = useState<Record<string, string[]>>({});
 
   const storageKey = `nomnom:room:${roomCode}:member`;
 
@@ -72,6 +75,7 @@ export function GroupRoomPage() {
         setRoom(found);
 
         if (found) {
+          setNewRoomName(found.roomName || "");
           const saved = sessionStorage.getItem(storageKey);
           if (saved) {
             setMyMemberId(JSON.parse(saved).id);
@@ -198,6 +202,18 @@ export function GroupRoomPage() {
   }
 
   const readyCount = members.filter((m) => m.isReady).length;
+  const isRoomCreator = room.createdBy === user?.id;
+
+  const handleEditRoomName = async () => {
+    if (!room || !newRoomName.trim()) return;
+    try {
+      await updateRoomName(room.id, newRoomName.trim());
+      toast("Room name updated", "success");
+      setEditingName(false);
+    } catch {
+      toast("Couldn't update room name", "error");
+    }
+  };
 
   return (
     <div className="mx-auto max-w-4xl px-6">
@@ -205,7 +221,48 @@ export function GroupRoomPage() {
         <div className="mb-3 inline-flex items-center gap-2 rounded-full glass px-4 py-1.5 text-xs font-medium text-zinc-300">
           <Users size={13} className="text-violet-400" /> Room {room.roomCode}
         </div>
-        <h1 className="text-3xl font-semibold tracking-tight text-white">Waiting for the group</h1>
+
+        {editingName ? (
+          <div className="mt-4 mx-auto max-w-sm">
+            <div className="flex gap-2">
+              <Input
+                value={newRoomName}
+                onChange={(e) => setNewRoomName(e.target.value)}
+                placeholder="Room name"
+                autoFocus
+                maxLength={50}
+              />
+              <Button size="sm" onClick={handleEditRoomName} disabled={!newRoomName.trim()}>
+                <Check size={14} />
+              </Button>
+              <Button
+                size="sm"
+                variant="glass"
+                onClick={() => {
+                  setEditingName(false);
+                  setNewRoomName(room.roomName || "");
+                }}
+              >
+                <X size={14} />
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <h1 className="text-3xl font-semibold tracking-tight text-white">
+              {room.roomName || "Waiting for the group"}
+            </h1>
+            {isRoomCreator && (
+              <button
+                onClick={() => setEditingName(true)}
+                className="mt-2 text-xs text-zinc-400 hover:text-zinc-300 flex items-center gap-1 mx-auto"
+              >
+                <Edit2 size={12} /> Edit name
+              </button>
+            )}
+          </>
+        )}
+
         <p className="mt-2 text-sm text-zinc-400">{readyCount} of {members.length} member{members.length !== 1 ? "s" : ""} ready</p>
       </div>
 
