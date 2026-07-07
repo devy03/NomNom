@@ -2,12 +2,11 @@ import type { Coordinates, Restaurant } from "@/types";
 import { getRestaurantDetails } from "@/services/restaurantService";
 
 const OG_IMAGE_CACHE_PREFIX = "nomnom:og-image:";
+const COMMONS_CACHE_PREFIX = "nomnom:commons-photo:";
 
-/** Fetches a website's Open Graph image via our own /api/og-image proxy
- * (arbitrary cross-origin HTML can't be read directly from the browser due
- * to CORS). Cached per-session since a site's OG image rarely changes. */
-async function fetchOgImage(website: string): Promise<string | null> {
-  const cacheKey = OG_IMAGE_CACHE_PREFIX + website;
+/** Small helper: cache a lookup result in sessionStorage under a prefixed
+ * key, treating the literal string "null" as a cached miss. */
+async function cachedLookup(cacheKey: string, run: () => Promise<string | null>): Promise<string | null> {
   try {
     const cached = sessionStorage.getItem(cacheKey);
     if (cached !== null) return cached === "null" ? null : cached;
@@ -15,14 +14,7 @@ async function fetchOgImage(website: string): Promise<string | null> {
     // ignore (private mode / storage full)
   }
 
-  let image: string | null = null;
-  try {
-    const res = await fetch(`/api/og-image?url=${encodeURIComponent(website)}`);
-    const data = await res.json();
-    image = data.image ?? null;
-  } catch {
-    image = null;
-  }
+  const image = await run().catch(() => null);
 
   try {
     sessionStorage.setItem(cacheKey, image ?? "null");
@@ -32,15 +24,48 @@ async function fetchOgImage(website: string): Promise<string | null> {
   return image;
 }
 
-/** Fills in a real photo from the restaurant's own website when Geoapify
- * didn't already supply one (via wiki_and_media). No-op if a real photo is
- * already present or no website is known — restaurants with neither keep
- * the existing placeholder image. */
+/** Fetches a website's Open Graph image via our own /api/og-image proxy
+ * (arbitrary cross-origin HTML can't be read directly from the browser due
+ * to CORS). Cached per-session since a site's OG image rarely changes. */
+function fetchOgImage(website: string): Promise<string | null> {
+  return cachedLookup(OG_IMAGE_CACHE_PREFIX + website, async () => {
+    const res = await fetch(`/api/og-image?url=${encodeURIComponent(website)}`);
+    const data = await res.json();
+    return data.image ?? null;
+  });
+}
+
+/** Fallback photo source when a restaurant has no website, or its website
+ * had no og:image tag: searches Wikimedia Commons (free, legitimate) for a
+ * real photo. Coverage is realistically low for small independent
+ * restaurants — Commons is built around notable subjects — but it's a
+ * reasonable second chance for chains/landmarks at zero cost. */
+function fetchCommonsPhoto(name: string, location: string): Promise<string | null> {
+  return cachedLookup(COMMONS_CACHE_PREFIX + name + "|" + location, async () => {
+    const res = await fetch(`/api/commons-photo?name=${encodeURIComponent(name)}&location=${encodeURIComponent(location)}`);
+    const data = await res.json();
+    return data.image ?? null;
+  });
+}
+
+/** Fills in a real photo, trying progressively less-precise free sources:
+ * (1) no-op if Geoapify's own wiki_and_media already gave one, (2) the
+ * restaurant's own website og:image when a website is known, (3) Wikimedia
+ * Commons as a last resort. Restaurants with none of these keep the
+ * existing placeholder image — the accepted, honest end state for a
+ * restaurant with no free photo source anywhere. */
 export async function enrichRestaurantPhoto(restaurant: Restaurant): Promise<Restaurant> {
-  if (restaurant.photos.length > 0 || !restaurant.website) return restaurant;
-  const image = await fetchOgImage(restaurant.website);
-  if (!image) return restaurant;
-  return { ...restaurant, image, photos: [image] };
+  if (restaurant.photos.length > 0) return restaurant;
+
+  if (restaurant.website) {
+    const image = await fetchOgImage(restaurant.website);
+    if (image) return { ...restaurant, image, photos: [image] };
+  }
+
+  const commonsImage = await fetchCommonsPhoto(restaurant.name, restaurant.address);
+  if (commonsImage) return { ...restaurant, image: commonsImage, photos: [commonsImage] };
+
+  return restaurant;
 }
 
 /** Enriches the first `count` results of a nearby-search list with real

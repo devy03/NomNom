@@ -63,11 +63,25 @@ export default async function handler(request: Request): Promise<Response> {
 
   try {
     const res = await fetch(parsed.toString(), {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; NomNomBot/1.0; +https://nomnom.app)" },
+      // A real browser UA + the headers a real browser sends — restaurant
+      // sites are meant to expose these Open Graph tags for link-preview
+      // crawlers (Slack/Discord/etc. do the same); an obviously-bot UA
+      // instead trips some CDNs' bot-mitigation into silently serving a
+      // stripped/challenge page while still returning 200.
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
       signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return json({ image: null });
     const html = await res.text();
+    // A genuine page with real content is never this small — a challenge/
+    // interstitial page (Cloudflare, etc.) typically is. Treat it the same
+    // as "no image tag found" rather than trusting the 200 status alone.
+    if (html.length < 500) return json({ image: null });
     return json({ image: extractMetaImage(html, parsed) });
   } catch {
     return json({ image: null });
