@@ -86,6 +86,8 @@ export interface GroupRoom {
   roomCode: string;
   createdBy: string;
   status: RoomStatus;
+  roomName?: string;
+  isPermanent: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -133,4 +135,23 @@ export interface GroupMatchBreakdown {
   score: number;
   reasons: { member: string; reason: string; happy: boolean }[];
   badge?: "Best Overall" | "Cheapest Good Option" | "Closest Good Option" | "Hidden Gem" | "Safest Pick";
+}
+
+export interface GroupVote {
+  id: string;
+  roomId: string;
+  memberId: string;
+  guestName: string;
+  userId?: string;
+  placeId: string;
+  restaurantName: string;
+  votedAt: string;
+}
+
+export interface GroupHistoryItem {
+  room: GroupRoom;
+  members: GroupMember[];
+  memberCount: number;
+  yourRole: 'creator' | 'participant';
+  lastUpdated: string;
 }

@@ -205,3 +205,133 @@ export function subscribeToRoom(roomId: string, onChange: RoomChangeHandler): ()
     supabase!.removeChannel(sub);
   };
 }
+
+export async function updateRoomName(roomId: string, roomName: string): Promise<void> {
+  if (!hasSupabase) {
+    const rooms = readLocalRooms();
+    Object.values(rooms).forEach((state) => {
+      if (state.room.id === roomId) {
+        state.room.roomName = roomName;
+      }
+    });
+    writeLocalRooms(rooms);
+    return;
+  }
+
+  const { error } = await supabase!.from("group_rooms").update({ room_name: roomName }).eq("id", roomId);
+  if (error) throw new GroupServiceError(error.message);
+}
+
+export async function getUserGroupHistory(userId: string | undefined, days: number = 7): Promise<GroupRoom[]> {
+  if (!userId || !hasSupabase) {
+    // For local/guest users, return empty array
+    return [];
+  }
+
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - days);
+
+  const { data, error } = await supabase!
+    .from("group_rooms")
+    .select("*")
+    .eq("created_by", userId)
+    .gte("created_at", sevenDaysAgo.toISOString())
+    .order("created_at", { ascending: false });
+
+  if (error) throw new GroupServiceError(error.message);
+  return (data || []).map((row) => ({
+    id: row.id,
+    roomCode: row.room_code,
+    createdBy: row.created_by,
+    status: row.status,
+    roomName: row.room_name,
+    isPermanent: row.is_permanent ?? true,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+}
+
+export async function getUserParticipatedRooms(userId: string | undefined, days: number = 7): Promise<GroupRoom[]> {
+  if (!userId || !hasSupabase) {
+    return [];
+  }
+
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - days);
+
+  const { data, error } = await supabase!
+    .from("group_rooms")
+    .select(
+      "group_rooms(id, room_code, created_by, status, room_name, is_permanent, created_at, updated_at)",
+      { count: "exact" }
+    )
+    .eq("group_members.user_id", userId)
+    .gte("group_rooms.created_at", sevenDaysAgo.toISOString())
+    .order("group_rooms.created_at", { ascending: false });
+
+  if (error) throw new GroupServiceError(error.message);
+
+  // Since the API doesn't support nested filtering directly, we'll use a simpler approach
+  const { data: members } = await supabase!
+    .from("group_members")
+    .select("room_id")
+    .eq("user_id", userId)
+    .gte("joined_at", sevenDaysAgo.toISOString());
+
+  if (!members) return [];
+
+  const roomIds = [...new Set(members.map((m) => m.room_id))];
+  if (roomIds.length === 0) return [];
+
+  const { data: rooms, error: err } = await supabase!
+    .from("group_rooms")
+    .select("*")
+    .in("id", roomIds)
+    .order("created_at", { ascending: false });
+
+  if (err) throw new GroupServiceError(err.message);
+
+  return (rooms || []).map((row) => ({
+    id: row.id,
+    roomCode: row.room_code,
+    createdBy: row.created_by,
+    status: row.status,
+    roomName: row.room_name,
+    isPermanent: row.is_permanent ?? true,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+}
+
+export async function recordVote(roomId: string, memberId: string, guestName: string, placeId: string, restaurantName: string, userId?: string): Promise<void> {
+  if (!hasSupabase) {
+    // Vote tracking not supported in local mode
+    return;
+  }
+
+  const { error } = await supabase!.from("group_votes").insert({
+    room_id: roomId,
+    member_id: memberId,
+    guest_name: guestName,
+    user_id: userId ?? null,
+    place_id: placeId,
+    restaurant_name: restaurantName,
+  });
+
+  if (error) throw new GroupServiceError(error.message);
+}
+
+export async function getVotesForRoom(roomId: string): Promise<any[]> {
+  if (!hasSupabase) {
+    return [];
+  }
+
+  const { data, error } = await supabase!
+    .from("group_votes")
+    .select("*")
+    .eq("room_id", roomId)
+    .order("voted_at", { ascending: false });
+
+  if (error) throw new GroupServiceError(error.message);
+  return data || [];
+}
