@@ -75,27 +75,6 @@ export function GroupPage() {
         Create a room, share the link, and everyone sets their own preferences. We'll find the perfect match.
       </p>
 
-      {user && (
-        <Button
-          size="sm"
-          variant="glass"
-          onClick={() => setShowHistory(!showHistory)}
-          className="mt-4"
-        >
-          <History size={14} /> {showHistory ? "Hide History" : "View History"}
-        </Button>
-      )}
-
-      {showHistory && user && (
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-strong w-full rounded-3xl p-6 mt-6 max-h-96 overflow-y-auto"
-        >
-          <GroupHistory onRejoin={handleRejoin} />
-        </motion.div>
-      )}
-
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass-strong mt-8 w-full rounded-3xl p-6">
         <div className="space-y-3 text-left mb-6">
           <Label>Room Name (Optional)</Label>
@@ -131,6 +110,27 @@ export function GroupPage() {
           </div>
         </form>
       </motion.div>
+
+      {user && (
+        <Button
+          size="sm"
+          variant="glass"
+          onClick={() => setShowHistory(!showHistory)}
+          className="mt-6"
+        >
+          <History size={14} /> {showHistory ? "Hide History" : "View History"}
+        </Button>
+      )}
+
+      {showHistory && user && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-strong w-full rounded-3xl p-6 mt-6 max-h-96 overflow-y-auto"
+        >
+          <GroupHistory onRejoin={handleRejoin} />
+        </motion.div>
+      )}
     </div>
   );
 }

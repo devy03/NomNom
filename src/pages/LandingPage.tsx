@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { AIOrb } from "@/components/shared/AIOrb";
 import { Footer } from "@/components/shared/Footer";
+import { useAuth } from "@/hooks/useAuth";
 
 const examples = [
   "I want something spicy",
@@ -15,6 +16,7 @@ const examples = [
 
 export function LandingPage() {
   const navigate = useNavigate();
+  const { user, loading } = useAuth();
   const [query, setQuery] = useState("");
   const [exampleIndex, setExampleIndex] = useState(0);
 
@@ -25,10 +27,40 @@ export function LandingPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Auto-redirect authenticated users after 2 seconds
+  useEffect(() => {
+    if (user && !loading) {
+      const timer = setTimeout(() => {
+        navigate("/home");
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [user, loading, navigate]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     navigate("/chat", { state: { initialQuery: query || examples[exampleIndex] } });
   };
+
+  // Show welcome greeting for authenticated users
+  if (user && !loading) {
+    return (
+      <div className="relative flex min-h-screen flex-col items-center justify-center px-6 py-20">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.6 }}
+          className="text-center"
+        >
+          <AIOrb size={200} className="mb-6" />
+          <h1 className="text-4xl font-semibold tracking-tight text-gradient sm:text-5xl">
+            Welcome back, {user.user_metadata?.name || user.email?.split("@")[0]}!
+          </h1>
+          <p className="mt-4 text-zinc-400">Redirecting you to your dashboard...</p>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center px-6 py-20">
