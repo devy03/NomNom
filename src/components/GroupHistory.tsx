@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, Users, ArrowRight, Clock } from "lucide-react";
 import { getUserGroupHistory, getUserParticipatedRooms } from "@/services/groupService";
 import { useAuth } from "@/hooks/useAuth";
-import type { GroupRoom, GroupMember } from "@/types";
+import type { GroupRoom } from "@/types";
 import { Button } from "@/components/ui/Button";
 
 interface GroupHistoryProps {

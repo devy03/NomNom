@@ -92,7 +92,7 @@ export function GroupPage() {
           animate={{ opacity: 1, y: 0 }}
           className="glass-strong w-full rounded-3xl p-6 mt-6 max-h-96 overflow-y-auto"
         >
-          <GroupHistory onRejoin={handleRejoin} onClose={() => setShowHistory(false)} />
+          <GroupHistory onRejoin={handleRejoin} />
         </motion.div>
       )}
 
