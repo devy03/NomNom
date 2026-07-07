@@ -66,13 +66,26 @@ export function GroupRoomPage() {
     if (!roomCode) return;
     let cancelled = false;
     (async () => {
-      const found = await findRoomByCode(roomCode).catch(() => null);
-      if (cancelled) return;
-      setRoom(found);
-      setLoading(false);
-      if (found) {
-        const saved = sessionStorage.getItem(storageKey);
-        if (saved) setMyMemberId(JSON.parse(saved).id);
+      try {
+        const found = await findRoomByCode(roomCode).catch(() => null);
+        if (cancelled) return;
+        setRoom(found);
+
+        if (found) {
+          const saved = sessionStorage.getItem(storageKey);
+          if (saved) {
+            setMyMemberId(JSON.parse(saved).id);
+          }
+          // If user is already a member, they'll be loaded from session storage
+          // Otherwise, they'll need to enter guest name and join
+        } else {
+          toast("Room not found. Check the invite link.", "error");
+        }
+      } catch (error) {
+        console.error("Failed to load room:", error);
+        toast("Couldn't load the room. Try refreshing.", "error");
+      } finally {
+        setLoading(false);
       }
     })();
     return () => {
