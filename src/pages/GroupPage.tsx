@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Users, Plus, LogIn, History, X } from "lucide-react";
+import { Users, Plus, LogIn, History } from "lucide-react";
 import { AIOrb } from "@/components/shared/AIOrb";
 import { GroupHistory } from "@/components/GroupHistory";
 import { Button } from "@/components/ui/Button";

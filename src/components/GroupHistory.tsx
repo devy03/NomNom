@@ -8,16 +8,14 @@ import { Button } from "@/components/ui/Button";
 
 interface GroupHistoryProps {
   onRejoin?: (roomCode: string) => void;
-  onClose?: () => void;
 }
 
-export function GroupHistory({ onRejoin, onClose }: GroupHistoryProps) {
+export function GroupHistory({ onRejoin }: GroupHistoryProps) {
   const { user } = useAuth();
   const [tab, setTab] = useState<"created" | "participated" | "all">("created");
   const [createdRooms, setCreatedRooms] = useState<GroupRoom[]>([]);
   const [participatedRooms, setParticipatedRooms] = useState<GroupRoom[]>([]);
   const [loading, setLoading] = useState(true);
-  const [members, setMembers] = useState<Record<string, GroupMember[]>>({});
 
   useEffect(() => {
     const loadHistory = async () => {

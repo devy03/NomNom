@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link2, Check, Users, Sparkles, ThumbsUp, ThumbsDown, Crown, DollarSign, MapPinned, Gem, ShieldCheck, Edit2, X } from "lucide-react";
 import {
-  findRoomByCode, getGroupPreferences, getMembers, joinRoom, savePreferences, subscribeToRoom, updateRoomName, getVotesForRoom,
+  findRoomByCode, getGroupPreferences, getMembers, joinRoom, savePreferences, subscribeToRoom, updateRoomName,
 } from "@/services/groupService";
 import { searchNearbyRestaurants } from "@/services/restaurantService";
 import { computeGroupMatch } from "@/lib/groupMatch";
@@ -54,7 +54,6 @@ export function GroupRoomPage() {
   const [computing, setComputing] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [newRoomName, setNewRoomName] = useState("");
-  const [votes, setVotes] = useState<Record<string, string[]>>({});
 
   const storageKey = `nomnom:room:${roomCode}:member`;
 

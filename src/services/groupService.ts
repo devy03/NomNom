@@ -48,6 +48,7 @@ export async function createRoom(userId?: string): Promise<GroupRoom> {
       roomCode,
       createdBy: userId ?? "demo",
       status: "waiting",
+      isPermanent: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -65,7 +66,7 @@ export async function createRoom(userId?: string): Promise<GroupRoom> {
   if (error) throw new GroupServiceError(error.message);
   return {
     id: data.id, roomCode: data.room_code, createdBy: data.created_by,
-    status: data.status, createdAt: data.created_at, updatedAt: data.updated_at,
+    status: data.status, isPermanent: data.is_permanent ?? true, createdAt: data.created_at, updatedAt: data.updated_at,
   };
 }
 
@@ -83,7 +84,7 @@ export async function findRoomByCode(roomCode: string): Promise<GroupRoom | null
   if (!data) return null;
   return {
     id: data.id, roomCode: data.room_code, createdBy: data.created_by,
-    status: data.status, createdAt: data.created_at, updatedAt: data.updated_at,
+    status: data.status, isPermanent: data.is_permanent ?? true, createdAt: data.created_at, updatedAt: data.updated_at,
   };
 }
 
@@ -259,19 +260,6 @@ export async function getUserParticipatedRooms(userId: string | undefined, days:
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - days);
 
-  const { data, error } = await supabase!
-    .from("group_rooms")
-    .select(
-      "group_rooms(id, room_code, created_by, status, room_name, is_permanent, created_at, updated_at)",
-      { count: "exact" }
-    )
-    .eq("group_members.user_id", userId)
-    .gte("group_rooms.created_at", sevenDaysAgo.toISOString())
-    .order("group_rooms.created_at", { ascending: false });
-
-  if (error) throw new GroupServiceError(error.message);
-
-  // Since the API doesn't support nested filtering directly, we'll use a simpler approach
   const { data: members } = await supabase!
     .from("group_members")
     .select("room_id")
